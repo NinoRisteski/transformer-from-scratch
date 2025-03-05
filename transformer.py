@@ -69,6 +69,27 @@ class SelfAttention(nn.Module):
         # because we don't want to attend to the padding tokens 
         # we will mask the energy at the position where the mask is 0
 
+        attention = torch.softmax(energy / (self.embed_size ** (1/2)), dim=3)
+
+        # why we need to divide the energy by the embed_size ** (1/2)?
+        # because we want to scale the energy so that the softmax is not too small or too large
+
+        out = torch.einsum("nhql,nlhd->nqhd", [attention, values]).reshape(
+            N, query_len, self.heads * self.head_dim
+        )
+        # attention shape: (N, heads, query_len, key_len)
+        # values shape: (N, value_len, heads, heads_dim)
+        # after the einsum, the shape is: (N, query_len, heads, head_dim) then flatten last two dim
+
+        out = self.fc_out(out)
+        # out shape: (N, query_len, embed_size)
+
+        return out
+    
+    
+        
+
+
 
 
 
