@@ -31,6 +31,9 @@ class SelfAttention(nn.Module):
     def forward(self, values, keys, query, mask):
         """
         forward pass of the self-attention mechanism, the input is the embeddings of the input sequence. 
+        values, keys, query are the embeddings of the input sequence
+        mask is the mask for the input sequence
+        the output is the attention weights of the input sequence        
         """
         N = query.shape[0]
         # N is the batch size
