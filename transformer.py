@@ -87,9 +87,8 @@ class SelfAttention(nn.Module):
         return out
 
 class TransformerBlock(nn.Module):
-    """
-    Transformer block.
-    """
+    """Transformer block is used to encode the input sequence into a sequence of embeddings"""
+
     def __init__(self, embed_size, heads, dropout, forward_expansion):
         super(TransformerBlock, self).__init__()
         self.attention = SelfAttention(embed_size, heads)
@@ -121,9 +120,8 @@ class TransformerBlock(nn.Module):
         return out
 
 class Encoder(nn.Module):
-    """
-    Encoder.
-    """
+    """Encoder is used to encode the input sequence into a sequence of embeddings"""
+
     def __init__(self, src_vocab_size, embed_size, heads, dropout, forward_expansion, num_layers, max_length, device):
         super(Encoder, self).__init__()
 
@@ -165,8 +163,115 @@ class Encoder(nn.Module):
         # out, out, out are the embeddings of the input sequence
         # mask is the mask for the input sequence   
         return out
+
+class DecoderBlock(nn.Module):
+    """Decoder block is the core component of the decoder and it is used to decode the encoded sequence into a sequence of embeddings"""
+
+    def __init__(self, embed_size, heads, dropout, forward_expansion, device):
+        super(DecoderBlock, self).__init__()
+        self.device = device
+
+        self.attention = SelfAttention(embed_size, heads)
+        self.norm = nn.LayerNorm(embed_size)
+        self.transformer_block = TransformerBlock(embed_size, heads, dropout, forward_expansion)
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, value, key, src_mask, tgt_mask):
+        attention = self.attention(x, x, x, tgt_mask)
+        query = self.dropout(self.norm(attention + x))
+        out = self.transformer_block(value, key, query, src_mask)
+        # why we need to pass value, key, query, src_mask to the transformer block?
+        # because we want to apply the transformer block to the input sequence
+        # value, key, query are the embeddings of the input sequence
+        # src_mask is the mask for the input sequence
+        # tgt_mask is the mask for the target sequence
+        return out
+
+class Decoder(nn.Module):
+    """Decoder is used to decode the encoded sequence into a sequence of embeddings"""
+
+    def __init__(self, tgt_vocab_size, embed_size, heads, dropout, forward_expansion, num_layers, max_length, device):
+        super(Decoder, self).__init__()
+
+        self.embed_size = embed_size
+        self.device = device
+        self.word_embedding = nn.Embedding(tgt_vocab_size, embed_size)
+        self.position_embedding = nn.Embedding(max_length, embed_size)
+
+        self.layers = nn.ModuleList(
+            [DecoderBlock(embed_size, heads, dropout, forward_expansion, device) for _ in range(num_layers)]
+
+        )
+
+        self.fc_out = nn.Linear(embed_size, tgt_vocab_size)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, enc_out, src_mask, tgt_mask):
+        N, seq_length = x.shape
+        positions = torch.arange(0, seq_length).expand(N, seq_length).to(self.device)
+        x = self.dropout(self.word_embedding(x)+self.position_embedding(positions))
+
+        for layer in self.layers:
+            x = layer(x, enc_out, enc_out, src_mask, tgt_mask)
+        # why we need to pass x, enc_out, enc_out, src_mask, tgt_mask to the decoder block?
+        # because we want to apply the decoder block to the input sequence
+        # x is the embeddings of the input sequence
+        # enc_out is the embeddings of the encoded sequence
+        # src_mask is the mask for the input sequence
+        # tgt_mask is the mask for the target sequence
+        out = self.fc_out(x)
+        # why we need to pass x to the linear layer?
+        # because we want to project the embeddings of the input sequence to the target vocabulary size
+        return out
+
+class Transformer(nn.Module):
+    """Transformer is the main component of the transformer model. In the class, we will define the encoder, decoder, and the transformer block."""
+
+    def __init__(self, src_vocab_size, tgt_vocab_size, src_pad_idx, tgt_pad_idx, embed_size=256, heads=8, dropout=0, forward_expansion=4, num_layers=6, max_length=100, device="cuda"):
+        super(Transformer, self).__init__()
+
+        self.encoder = Encoder(src_vocab_size, embed_size, heads, dropout, forward_expansion, num_layers, max_length, device)
+        self.decoder = Decoder(tgt_vocab_size, embed_size, heads, dropout, forward_expansion, num_layers, max_length, device)
+        #we need to pass the src_pad_idx and tgt_pad_idx to the encoder and decoder
+        # because we need to mask the padding tokens in the input sequence and target sequence
+
+        self.src_pad_idx = src_pad_idx
+        self.tgt_pad_idx = tgt_pad_idx
+        self.device = device
+
+    def make_src_mask(self, src):
+        src_mask = (src != self.src_pad_idx).unsqueeze(1).unsqueeze(2)
+        # (N, 1, 1, src_len)
+        # why we need to unsqueeze the src_mask?
+        # because we need to mask the padding tokens in the input sequence
+        return src_mask.to(self.device)
+
+    def make_trg_mask(self, trg):
+        N, trg_len = trg.shape
+        trg_mask = torch.tril(torch.ones((trg_len, trg_len))).expand(N, 1, trg_len, trg_len)
+        # (trg_len, trg_len)
+        # why we need to create a triangular matrix?
+        # because we need to mask the future tokens in the target sequence
+        return trg_mask.to(self.device)
+
+    def forward(self, src, trg):
+        src_mask = self.make_src_mask(src)
+        trg_mask = self.make_trg_mask(trg)
+        enc_src = self.encoder(src, src_mask)
+        out = self.decoder(trg, enc_src, src_mask, trg_mask)
+        return out
+
+# The transformer is created!
+
+
+        
         
 
+        
+        
+        
+        
         
         
         
