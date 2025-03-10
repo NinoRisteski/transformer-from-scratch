@@ -95,8 +95,30 @@ class TransformerBlock(nn.Module):
         self.attention = SelfAttention(embed_size, heads)
         self.norm1 = nn.LayerNorm(embed_size)
         self.norm2 = nn.LayerNorm(embed_size)
-    
-        
+
+        self.feed_forward = nn.Sequential(
+            nn.Linear(embed_size, forward_expansion * embed_size),
+            nn.ReLU(),
+            nn.Linear(forward_expansion * embed_size, embed_size),
+        )
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, value, key, query, mask):
+        # why we need to pass value, key, query, mask to the attention?
+        # because we want to compute the attention weights for the input sequence
+        # value, key, query are the embeddings of the input sequence
+        # mask is the mask for the input sequence
+        attention = self.attention(value, key, query, mask)
+
+        x=self.dropout(self. norm1(attention+query))
+        forward=self.feed_forward(x)
+        out=self.dropout(self.norm2(x+forward))
+        # why we need to add the query to the attention and the feed_forward?
+        # because we want to add the attention and the feed_forward to the query
+        # so that we can get the output of the transformer block
+
+        return out
 
 
 
