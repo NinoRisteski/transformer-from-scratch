@@ -184,7 +184,7 @@ class DecoderBlock(nn.Module):
 
     def forward(self, x, value, key, src_mask, tgt_mask):
         attention = self.attention(x, x, x, tgt_mask)
-        query = self.dropout(self.norm(attention + x))
+        query = self.norm(x + self.dropout(attention))
         out = self.transformer_block(value, key, query, src_mask)
         # why we need to pass value, key, query, src_mask to the transformer block?
         # because we want to apply the transformer block to the input sequence
