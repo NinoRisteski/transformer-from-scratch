@@ -46,6 +46,10 @@ class SelfAttention(nn.Module):
         keys = keys.reshape(N, key_len, self.heads, self.head_dim)
         queries = query.reshape(N, query_len, self.heads, self.head_dim)
 
+        values = self.values(values)
+        keys = self.keys(keys)
+        queries = self.queries(queries)
+
         energy = torch.einsum("nqhd,nkhd->nhqk", [queries, keys])
         # what is einsum?
         # it is a function that allows us to perform the dot product of the queries and keys
@@ -177,6 +181,7 @@ class DecoderBlock(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
+
     def forward(self, x, value, key, src_mask, tgt_mask):
         attention = self.attention(x, x, x, tgt_mask)
         query = self.dropout(self.norm(attention + x))
@@ -264,7 +269,31 @@ class Transformer(nn.Module):
 
 # The transformer is created!
 
+# to test it with an example:
 
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    x = torch.tensor([[1, 5, 6, 4, 3, 9, 5, 2, 0, 0, 0], [1, 8, 7, 3, 4, 5, 6, 7, 8, 9, 0]]).to(device)
+    trg = torch.tensor([[1, 7, 4, 3, 5, 9, 2, 0, 0, 0, 0], [1, 2, 6, 2, 3, 4, 5, 6, 7, 8, 0]]).to(device)
+
+    src_pad_idx = 0
+    tgt_pad_idx = 0
+
+    src_vocab_size = 10
+    tgt_vocab_size = 10
+    embed_size = 256
+    heads = 8
+    dropout = 0
+    forward_expansion = 4
+    num_layers = 6
+    max_length = 100
+
+    transformer = Transformer(src_vocab_size, tgt_vocab_size, src_pad_idx, tgt_pad_idx, embed_size, heads, dropout, forward_expansion, num_layers, max_length, device).to(device)
+
+    print(transformer(x, trg).shape)
+
+   
         
         
 
