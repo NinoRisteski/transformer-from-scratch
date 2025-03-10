@@ -120,8 +120,61 @@ class TransformerBlock(nn.Module):
 
         return out
 
+class Encoder(nn.Module):
+    """
+    Encoder.
+    """
+    def __init__(self, src_vocab_size, embed_size, heads, dropout, forward_expansion, num_layers, max_length, device):
+        super(Encoder, self).__init__()
 
+        self.embed_size = embed_size
+        self.device = device
+        self.word_embedding = nn.Embedding(src_vocab_size, embed_size)
+        self.position_embedding = nn.Embedding(max_length, embed_size)
+        # why we need to use the embedding layer?
+        # because we want to convert the input sequence to a sequence of embeddings
+        # the input sequence is a sequence of integers, and the embedding layer converts each integer to a vector
+        # the embedding layer is a lookup table, and the input sequence is the index of the lookup table    
 
+        self.layers = nn.ModuleList(
+            [TransformerBlock(embed_size, heads, dropout=dropout, forward_expansion=forward_expansion) for _ in range(num_layers)]
+        )
+        # why we need to use the ModuleList?
+        # because we want to store the transformer blocks in a list
+        # so that we can iterate over the list and apply the transformer blocks to the input sequence
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, mask):
+        N, seq_length = x.shape
+        positions = torch.arange(0, seq_length).expand(N, seq_length).to(self.device)
+        # why we need to expand the positions?
+        # because we want to create a sequence of positions for the input sequence
+        # the positions are the positions of the input sequence
+        # the positions are a sequence of integers, and the embedding layer converts each integer to a vector
+
+        out = self.dropout(self.word_embedding(x) + self.position_embedding(positions))
+        # why we need to add the word embedding and the position embedding?
+        # because we want to add the word embedding and the position embedding to the input sequence
+        # so that we can get the input sequence with the word embedding and the position embedding
+
+        for layer in self.layers:
+            out = layer(out, out, out, mask)
+        # why we need to pass out, out, out, mask to the transformer block?
+        # because we want to apply the transformer block to the input sequence
+        # out, out, out are the embeddings of the input sequence
+        # mask is the mask for the input sequence   
+        return out
+        
+
+        
+        
+        
+        
+        
+        
+        
+        
 
 
 
